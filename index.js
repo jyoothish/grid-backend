@@ -124,6 +124,14 @@ app.get("/season", (req, res) => {
     });
 });
 
+app.get("/health", async (req, res) => {
+    try {
+        await pool.query("SELECT 1");
+        res.json({ ok: true });
+    } catch (e) {
+        res.status(503).json({ ok: false });
+    }
+});
 
 app.get("/grid", async (req, res) => {
     const offset = parseInt(req.query.offset || "0");
@@ -144,6 +152,21 @@ app.get("/grid", async (req, res) => {
     );
 
     res.json({ data: result.rows });
+});
+
+app.get("/grid-min", async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT cell_id, is_mask, filled, username
+            FROM cells
+            ORDER BY cell_id
+        `);
+
+        res.json({ data: result.rows });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false });
+    }
 });
 
 
@@ -172,9 +195,15 @@ app.get("/search/:username", async (req, res) => {
 });
 
 app.get("/progress", async (req, res) => {
-    const result = await pool.query("SELECT COUNT(*) FROM usernames");
-    res.json({ filled: parseInt(result.rows[0].count) });
+    const result = await pool.query(`
+        SELECT COUNT(*) 
+        FROM cells 
+        WHERE filled = TRUE AND is_mask = FALSE
+    `);
+
+    res.json({ filled: parseInt(result.rows[0].count, 10) });
 });
+
 
 
 app.post("/admin/upload", adminAuth, async (req, res) => {
